@@ -1,0 +1,24 @@
+<input type="file" id="cameraInput" accept="image/*" capture="environment">
+<button onclick="upload()">Upload</button>
+
+<script>
+function upload() {
+  const fileInput = document.getElementById('cameraInput');
+  if (!fileInput.files[0]) return alert("Select an image!");
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const base64Image = e.target.result;
+
+    // Send to Apps Script web app
+    fetch("https://script.google.com/macros/s/AKfycbwPZZ25lt_fbvUm1uYHF3_cgr-6Pk_1hEuXUgz56KnZ2EnLvFjiwhCACRHr4G8-tlEnDw/exec", {
+      method: "POST",
+      body: new URLSearchParams({image: base64Image})
+    })
+    .then(r => r.text())
+    .then(console.log)
+    .catch(console.error);
+  };
+  reader.readAsDataURL(fileInput.files[0]);
+}
+</script>
