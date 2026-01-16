@@ -1,22 +1,47 @@
+<select id="trackingSelect">
+  <option value="">Select Tracking Number</option>
+</select>
+
+<br><br>
+
 <input type="file" id="cameraInput" accept="image/*" capture="environment">
 <button onclick="upload()">Upload</button>
 
 <script>
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzTF_0gPk6he7TflGcVHHqAzH3oH3ihEeQokh4q4NmCQvfcFqF4aPX-iDMBrfdObP9-/exec";
+
+// Load today's tracking numbers
+fetch(WEB_APP_URL)
+  .then(r => r.json())
+  .then(data => {
+    const select = document.getElementById("trackingSelect");
+    data.forEach(tracking => {
+      const option = document.createElement("option");
+      option.value = tracking;
+      option.textContent = tracking;
+      select.appendChild(option);
+    });
+  })
+  .catch(console.error);
+
 function upload() {
-  const fileInput = document.getElementById('cameraInput');
-  if (!fileInput.files[0]) return alert("Select an image!");
+  const fileInput = document.getElementById("cameraInput");
+  const tracking = document.getElementById("trackingSelect").value;
+
+  if (!tracking) return alert("Select a tracking number");
+  if (!fileInput.files[0]) return alert("Select an image");
 
   const reader = new FileReader();
   reader.onload = function(e) {
-    const base64Image = e.target.result;
-
-    // Send to Apps Script web app
-    fetch("https://script.google.com/macros/s/AKfycbxUfZqp6FO7h-ofN3MpyLzXPAUVLnWD_Y7SZDlr4CriFwqgo66Nbf2h2ki-fMnEFRX6Kw/exec", {
+    fetch(WEB_APP_URL, {
       method: "POST",
-      body: new URLSearchParams({image: base64Image})
+      body: new URLSearchParams({
+        image: e.target.result,
+        tracking: tracking
+      })
     })
     .then(r => r.text())
-    .then(console.log)
+    .then(msg => alert(msg))
     .catch(console.error);
   };
   reader.readAsDataURL(fileInput.files[0]);
