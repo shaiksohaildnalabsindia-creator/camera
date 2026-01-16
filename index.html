@@ -2,108 +2,104 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>POD Upload</title>
+  <title>Upload POD Images</title>
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; }
-    select, input, button { font-size: 16px; margin: 5px 0; }
-    #preview { margin-top: 10px; max-width: 300px; display: none; }
+    select, input, button { margin: 10px 0; display: block; }
+    .preview img { max-width: 150px; margin: 5px; }
   </style>
 </head>
 <body>
-  <h2>Upload POD Image</h2>
+  <h2>Upload POD Images</h2>
 
-  <label for="trackingSelect">Select Tracking Number:</label><br>
+  <label for="trackingSelect">Select Tracking Number:</label>
   <select id="trackingSelect">
-    <option value="">Loading...</option>
+    <option value="">Select Tracking Number</option>
   </select>
 
-  <br><br>
+  <label for="cameraInput">Select Image(s):</label>
+  <input type="file" id="cameraInput" accept="image/*" capture="environment" multiple>
 
-  <label for="cameraInput">Select Image:</label><br>
-  <input type="file" id="cameraInput" accept="image/*" capture="environment">
-  <img id="preview" src="#" alt="Image Preview">
+  <div class="preview" id="preview"></div>
 
-  <br><br>
   <button id="uploadBtn">Upload</button>
 
-  <p id="status"></p>
-
   <script>
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzK6L1gkFT8tGV02tKtEMkaMZlkMwMLIK5_PLlKnYTXlKsthvkrZdkJlOBg3XinIt_9tQ/exec";
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw8FqXG2Cy1YqSnSSF55WnBQNuOiw7xeiAbSgo_MoHKcJvuuQJX2xfSHbf6K3avIy1Z/exec";
 
-    const select = document.getElementById("trackingSelect");
+    const trackingSelect = document.getElementById("trackingSelect");
     const fileInput = document.getElementById("cameraInput");
-    const preview = document.getElementById("preview");
-    const status = document.getElementById("status");
+    const previewDiv = document.getElementById("preview");
     const uploadBtn = document.getElementById("uploadBtn");
 
-    // Load today's tracking numbers
+    // ---------- Fetch today's tracking numbers ----------
     fetch(WEB_APP_URL)
-      .then(r => r.json())
+      .then(res => res.json())
       .then(data => {
-        select.innerHTML = "";
-        const filtered = data.filter(x => x && x !== "Unknown");
-
-        if (filtered.length === 0) {
-          select.innerHTML = '<option value="">No tracking numbers today</option>';
-        } else {
-          select.innerHTML = '<option value="">Select Tracking Number</option>';
-          filtered.forEach(tracking => {
-            const option = document.createElement("option");
-            option.value = tracking;
-            option.textContent = tracking;
-            select.appendChild(option);
-          });
+        if (!data || data.length === 0) {
+          const option = document.createElement("option");
+          option.value = "";
+          option.textContent = "No tracking numbers today";
+          trackingSelect.appendChild(option);
+          return;
         }
+        data.forEach(tracking => {
+          const option = document.createElement("option");
+          option.value = tracking;
+          option.textContent = tracking;
+          trackingSelect.appendChild(option);
+        });
       })
-      .catch(err => {
-        console.error(err);
-        select.innerHTML = '<option value="">Error loading tracking numbers</option>';
-      });
+      .catch(console.error);
 
-    // Show image preview
+    // ---------- Show image previews ----------
     fileInput.addEventListener("change", () => {
-      if (fileInput.files && fileInput.files[0]) {
-        const reader = new FileReader();
-        reader.onload = e => {
-          preview.src = e.target.result;
-          preview.style.display = "block";
-        };
-        reader.readAsDataURL(fileInput.files[0]);
-      }
+      previewDiv.innerHTML = "";
+      Array.from(fileInput.files).forEach(file => {
+        const img = document.createElement("img");
+        img.src = URL.createObjectURL(file);
+        previewDiv.appendChild(img);
+      });
     });
 
-    // Upload function
+    // ---------- Upload images ----------
     uploadBtn.addEventListener("click", () => {
-      const tracking = select.value;
-      if (!tracking) return alert("Select a tracking number");
-      if (!fileInput.files[0]) return alert("Select an image");
+      const tracking = trackingSelect.value;
+      if (!tracking) return alert("Please select a tracking number");
+      if (!fileInput.files.length) return alert("Please select at least one image");
 
-      status.textContent = "Uploading...";
+      const readers = [];
+      Array.from(fileInput.files).forEach(file => {
+        const reader = new FileReader();
+        readers.push(new Promise(resolve => {
+          reader.onload = e => resolve(e.target.result);
+          reader.readAsDataURL(file);
+        }));
+      });
 
-      const reader = new FileReader();
-      reader.onload = function(e) {
+      Promise.all(readers).then(results => {
+        // Join multiple images with "|" as expected by doPost
+        const imagesParam = results.join("|");
+
         fetch(WEB_APP_URL, {
           method: "POST",
           body: new URLSearchParams({
-            image: e.target.result,
-            tracking: tracking
+            tracking: tracking,
+            image: imagesParam
           })
         })
-        .then(r => r.json())
-        .then(res => {
-          if (res.success) {
-            status.textContent = "Upload successful! File URL: " + res.url;
-          } else if (res.error) {
-            status.textContent = "Error: " + res.error;
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            alert("Uploaded successfully!");
+            previewDiv.innerHTML = ""; // clear preview
+            fileInput.value = "";
+          } else {
+            alert("Error: " + (data.error || "Unknown error"));
           }
         })
-        .catch(err => {
-          console.error(err);
-          status.textContent = "Upload failed.";
-        });
-      };
-      reader.readAsDataURL(fileInput.files[0]);
+        .catch(err => alert("Error: " + err));
+      });
     });
   </script>
 </body>
