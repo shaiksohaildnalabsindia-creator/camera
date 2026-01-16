@@ -1,67 +1,110 @@
-<select id="trackingSelect">
-  <option value="">Select Tracking Number</option>
-</select>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>POD Upload</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    select, input, button { font-size: 16px; margin: 5px 0; }
+    #preview { margin-top: 10px; max-width: 300px; display: none; }
+  </style>
+</head>
+<body>
+  <h2>Upload POD Image</h2>
 
-<br><br>
+  <label for="trackingSelect">Select Tracking Number:</label><br>
+  <select id="trackingSelect">
+    <option value="">Loading...</option>
+  </select>
 
-<input type="file" id="cameraInput" accept="image/*" capture="environment">
-<button onclick="upload()">Upload</button>
+  <br><br>
 
-<script>
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwkH0fFkzRD0zwUZhiUhu8Y1a8Tx2CxBBOO4xc0SZgFMZ05nNiCqPM-RgXq6u0ShljgTQ/exec";
+  <label for="cameraInput">Select Image:</label><br>
+  <input type="file" id="cameraInput" accept="image/*" capture="environment">
+  <img id="preview" src="#" alt="Image Preview">
 
-const select = document.getElementById("trackingSelect");
+  <br><br>
+  <button id="uploadBtn">Upload</button>
 
-// Load today's tracking numbers
-fetch(WEB_APP_URL)
-  .then(r => r.json())
-  .then(data => {
-    // Filter out empty or "Unknown"
-    const filtered = data.filter(x => x && x !== "Unknown");
+  <p id="status"></p>
 
-    if (filtered.length === 0) {
-      select.innerHTML = '<option value="">No tracking numbers today</option>';
-    } else {
-      select.innerHTML = '<option value="">Select Tracking Number</option>';
-      filtered.forEach(tracking => {
-        const option = document.createElement("option");
-        option.value = tracking;
-        option.textContent = tracking;
-        select.appendChild(option);
-      });
-    }
-  })
-  .catch(err => {
-    console.error(err);
-    select.innerHTML = '<option value="">Error loading tracking numbers</option>';
-  });
+  <script>
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzr3hQorW4ippZPcr9KtwtEhYJD6MHRzRivpgnJoQPS3UuqDmLCgXFo_mBLWq9tGDcnUA/exec";
 
-function upload() {
-  const fileInput = document.getElementById("cameraInput");
-  const tracking = select.value;
+    const select = document.getElementById("trackingSelect");
+    const fileInput = document.getElementById("cameraInput");
+    const preview = document.getElementById("preview");
+    const status = document.getElementById("status");
+    const uploadBtn = document.getElementById("uploadBtn");
 
-  if (!tracking) return alert("Select a tracking number");
-  if (!fileInput.files[0]) return alert("Select an image");
+    // Load today's tracking numbers
+    fetch(WEB_APP_URL)
+      .then(r => r.json())
+      .then(data => {
+        select.innerHTML = "";
+        const filtered = data.filter(x => x && x !== "Unknown");
 
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    fetch(WEB_APP_URL, {
-      method: "POST",
-      body: new URLSearchParams({
-        image: e.target.result,
-        tracking: tracking
+        if (filtered.length === 0) {
+          select.innerHTML = '<option value="">No tracking numbers today</option>';
+        } else {
+          select.innerHTML = '<option value="">Select Tracking Number</option>';
+          filtered.forEach(tracking => {
+            const option = document.createElement("option");
+            option.value = tracking;
+            option.textContent = tracking;
+            select.appendChild(option);
+          });
+        }
       })
-    })
-    .then(r => r.json())
-    .then(msg => {
-      if (msg.success) {
-        alert("Upload successful!\nURL: " + msg.url);
-      } else if (msg.error) {
-        alert("Error: " + msg.error);
+      .catch(err => {
+        console.error(err);
+        select.innerHTML = '<option value="">Error loading tracking numbers</option>';
+      });
+
+    // Show image preview
+    fileInput.addEventListener("change", () => {
+      if (fileInput.files && fileInput.files[0]) {
+        const reader = new FileReader();
+        reader.onload = e => {
+          preview.src = e.target.result;
+          preview.style.display = "block";
+        };
+        reader.readAsDataURL(fileInput.files[0]);
       }
-    })
-    .catch(console.error);
-  };
-  reader.readAsDataURL(fileInput.files[0]);
-}
-</script>
+    });
+
+    // Upload function
+    uploadBtn.addEventListener("click", () => {
+      const tracking = select.value;
+      if (!tracking) return alert("Select a tracking number");
+      if (!fileInput.files[0]) return alert("Select an image");
+
+      status.textContent = "Uploading...";
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        fetch(WEB_APP_URL, {
+          method: "POST",
+          body: new URLSearchParams({
+            image: e.target.result,
+            tracking: tracking
+          })
+        })
+        .then(r => r.json())
+        .then(res => {
+          if (res.success) {
+            status.textContent = "Upload successful! File URL: " + res.url;
+          } else if (res.error) {
+            status.textContent = "Error: " + res.error;
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          status.textContent = "Upload failed.";
+        });
+      };
+      reader.readAsDataURL(fileInput.files[0]);
+    });
+  </script>
+</body>
+</html>
