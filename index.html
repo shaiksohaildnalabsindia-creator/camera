@@ -11,7 +11,7 @@ function upload() {
     const base64Image = e.target.result;
 
     // Send to Apps Script web app
-    fetch("https://script.google.com/macros/s/AKfycbwPZZ25lt_fbvUm1uYHF3_cgr-6Pk_1hEuXUgz56KnZ2EnLvFjiwhCACRHr4G8-tlEnDw/exec", {
+    fetch("https://script.google.com/macros/s/AKfycbwC72zrn7EkoQNTjBrRqu0D7LQ_BTSLWXAkNe6ER_Z7u2bPUEyXFS0tiWsfS-MKZslbtw/exec", {
       method: "POST",
       body: new URLSearchParams({image: base64Image})
     })
