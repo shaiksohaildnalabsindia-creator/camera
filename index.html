@@ -1,49 +1,110 @@
-<select id="trackingSelect">
-  <option value="">Select Tracking Number</option>
-</select>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>POD Upload</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 400px; }
+    select, input, button { display: block; width: 100%; margin-bottom: 15px; padding: 8px; }
+    img { max-width: 100%; margin-top: 10px; display: none; }
+  </style>
+</head>
+<body>
+  <h2>POD Upload</h2>
 
-<br><br>
+  <label for="trackingSelect">Select Tracking Number</label>
+  <select id="trackingSelect">
+    <option value="">Loading...</option>
+  </select>
 
-<input type="file" id="cameraInput" accept="image/*" capture="environment">
-<button onclick="upload()">Upload</button>
+  <label for="cameraInput">Take or select photo</label>
+  <input type="file" id="cameraInput" accept="image/*" capture="environment">
 
-<script>
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwYgK4i9gjZImMqvsFHw1d45c-Uz0xeeVaPL6CJ-dn_0swSRoTeNo8u7uyrBOZaQ0NjYw/exec";
+  <button id="uploadBtn">Upload</button>
 
-// Load today's tracking numbers
-fetch(WEB_APP_URL)
-  .then(r => r.json())
-  .then(data => {
+  <img id="preview" alt="Image Preview">
+
+  <p id="status"></p>
+
+  <script>
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw9ZxBtTtI5_h91UiAFJqdpCdAd9c-z9Z4H117ECRfIeHS8SrFk_2WXJEHynT6W9r896Q/exec";
+
     const select = document.getElementById("trackingSelect");
-    data.forEach(tracking => {
-      const option = document.createElement("option");
-      option.value = tracking;
-      option.textContent = tracking;
-      select.appendChild(option);
-    });
-  })
-  .catch(console.error);
+    const fileInput = document.getElementById("cameraInput");
+    const preview = document.getElementById("preview");
+    const status = document.getElementById("status");
+    const uploadBtn = document.getElementById("uploadBtn");
 
-function upload() {
-  const fileInput = document.getElementById("cameraInput");
-  const tracking = document.getElementById("trackingSelect").value;
-
-  if (!tracking) return alert("Select a tracking number");
-  if (!fileInput.files[0]) return alert("Select an image");
-
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    fetch(WEB_APP_URL, {
-      method: "POST",
-      body: new URLSearchParams({
-        image: e.target.result,
-        tracking: tracking
+    // Load today's tracking numbers
+    fetch(WEB_APP_URL)
+      .then(r => r.json())
+      .then(data => {
+        select.innerHTML = '<option value="">Select Tracking Number</option>';
+        if (data.length === 0) {
+          select.innerHTML = '<option value="">No tracking numbers today</option>';
+        } else {
+          data.forEach(tracking => {
+            const option = document.createElement("option");
+            option.value = tracking;
+            option.textContent = tracking;
+            select.appendChild(option);
+          });
+        }
       })
-    })
-    .then(r => r.text())
-    .then(msg => alert(msg))
-    .catch(console.error);
-  };
-  reader.readAsDataURL(fileInput.files[0]);
-}
-</script>
+      .catch(err => {
+        console.error(err);
+        select.innerHTML = '<option value="">Error loading tracking numbers</option>';
+      });
+
+    // Show preview when file selected
+    fileInput.addEventListener("change", () => {
+      if (fileInput.files[0]) {
+        const reader = new FileReader();
+        reader.onload = e => {
+          preview.src = e.target.result;
+          preview.style.display = "block";
+        };
+        reader.readAsDataURL(fileInput.files[0]);
+      }
+    });
+
+    // Upload function
+    uploadBtn.addEventListener("click", () => {
+      const tracking = select.value;
+      if (!tracking) return alert("Please select a tracking number.");
+      if (!fileInput.files[0]) return alert("Please select an image.");
+
+      uploadBtn.disabled = true;
+      status.textContent = "Uploading...";
+
+      const reader = new FileReader();
+      reader.onload = e => {
+        const formData = new URLSearchParams();
+        formData.append("tracking", tracking);
+        formData.append("image", e.target.result);
+
+        fetch(WEB_APP_URL, {
+          method: "POST",
+          body: formData
+        })
+        .then(r => r.text())
+        .then(msg => {
+          status.textContent = msg;
+          if (msg.includes("success")) {
+            preview.style.display = "none";
+            fileInput.value = "";
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          status.textContent = "Error uploading image.";
+        })
+        .finally(() => {
+          uploadBtn.disabled = false;
+        });
+      };
+      reader.readAsDataURL(fileInput.files[0]);
+    });
+  </script>
+</body>
+</html>
