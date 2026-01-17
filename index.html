@@ -2,13 +2,82 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Upload Sample Image</title>
+  <title>Upload Sample Images</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    select, input, button { margin: 10px 0; display: block; }
-    .preview img { max-width: 150px; margin: 5px; }
-    .input-container { margin-top: 20px; }
-    .input-container button { display: inline-block; margin-top: 10px; }
+    body { 
+      font-family: Arial, sans-serif; 
+      padding: 20px; 
+      margin: 0;
+      background-color: #f7f7f7;
+    }
+
+    h2 { text-align: center; }
+
+    select, input, button { 
+      margin: 10px 0; 
+      display: block; 
+      width: 100%; 
+      box-sizing: border-box; 
+      font-size: 16px;
+      padding: 10px;
+    }
+
+    button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    .preview {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .preview img {
+      max-width: 100px;
+      max-height: 100px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    .input-container {
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .input-container button {
+      width: 50px;
+      align-self: flex-start;
+      margin-top: 5px;
+      padding: 10px;
+    }
+
+    @media (max-width: 480px) {
+      .preview img {
+        max-width: 80px;
+        max-height: 80px;
+      }
+
+      button, select, input {
+        font-size: 14px;
+        padding: 8px;
+      }
+
+      .input-container button {
+        width: 40px;
+        padding: 8px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -83,6 +152,20 @@
       newInput.accept = "image/*";
       newInput.capture = "environment";
       fileInputContainer.appendChild(newInput);
+
+      // Also add change listener for new input
+      newInput.addEventListener("change", (event) => {
+        const fileList = event.target.files;
+        if (fileList.length > 0) {
+          for (let i = 0; i < fileList.length; i++) {
+            const file = fileList[i];
+            const img = document.createElement("img");
+            img.src = URL.createObjectURL(file);
+            previewDiv.appendChild(img);
+            filesToUpload.push(file);
+          }
+        }
+      });
     });
 
     // ---------- Resize and Compress Image to WebP format ----------
@@ -90,16 +173,13 @@
       return new Promise((resolve, reject) => {
         const img = new Image();
         const reader = new FileReader();
-        reader.onload = function (e) {
-          img.src = e.target.result;
-        };
+        reader.onload = function (e) { img.src = e.target.result; };
         reader.readAsDataURL(file);
 
         img.onload = function () {
           const canvas = document.createElement("canvas");
           const ctx = canvas.getContext("2d");
 
-          // Resize image to fit within maxWidth and maxHeight
           const maxWidth = 1024;
           const maxHeight = 1024;
           let width = img.width;
@@ -119,14 +199,11 @@
           canvas.height = height;
           ctx.drawImage(img, 0, 0, width, height);
 
-          // Compress to WebP format and check file size
           canvas.toBlob(function (blob) {
             const reader = new FileReader();
-            reader.onloadend = function () {
-              resolve(reader.result);  // Base64 data URL
-            };
+            reader.onloadend = function () { resolve(reader.result); };
             reader.readAsDataURL(blob);
-          }, "image/webp", 0.8);  // 0.8 is the compression factor
+          }, "image/webp", 0.8);
         };
       });
     }
@@ -139,18 +216,11 @@
 
       const readers = [];
       filesToUpload.forEach(file => {
-        // Resize and compress the image before uploading
-        readers.push(
-          resizeImage(file, 1000000).then(result => {
-            return result;  // This will contain the base64 compressed image
-          })
-        );
+        readers.push(resizeImage(file, 1000000));
       });
 
       Promise.all(readers).then(results => {
-        // Join multiple images with "|" as expected by doPost
         const imagesParam = results.join("|");
-
         fetch(WEB_APP_URL, {
           method: "POST",
           body: new URLSearchParams({
@@ -162,8 +232,8 @@
         .then(data => {
           if (data.success) {
             alert("Uploaded successfully!");
-            previewDiv.innerHTML = ""; // clear preview
-            filesToUpload = []; // clear file list
+            previewDiv.innerHTML = "";
+            filesToUpload = [];
           } else {
             alert("Error: " + (data.error || "Unknown error"));
           }
