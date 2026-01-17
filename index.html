@@ -43,11 +43,23 @@
       position: relative;
     }
 
-    .preview img {
-      max-width: 100px;
-      max-height: 100px;
+    .preview {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100px;
+      height: 100px;
       border: 1px solid #ccc;
       border-radius: 5px;
+      overflow: hidden;
+      position: relative;
+      background-color: white;
+    }
+
+    .preview img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: cover;
     }
 
     #addMoreBtn {
@@ -62,9 +74,9 @@
     }
 
     @media (max-width: 480px) {
-      .preview img {
-        max-width: 80px;
-        max-height: 80px;
+      .preview {
+        width: 80px;
+        height: 80px;
       }
 
       button, select, input {
@@ -126,9 +138,14 @@
 
     // ---------- Function to handle image selection ----------
     function handleFileInput(file) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "preview";
+
       const img = document.createElement("img");
       img.src = URL.createObjectURL(file);
-      previewContainer.insertBefore(img, addMoreBtn); // always insert before the + button
+
+      wrapper.appendChild(img);
+      previewContainer.insertBefore(wrapper, addMoreBtn); // insert before + button
       filesToUpload.push(file);
     }
 
@@ -215,7 +232,7 @@
         .then(data => {
           if (data.success) {
             alert("Uploaded successfully!");
-            previewContainer.querySelectorAll("img").forEach(img => img.remove());
+            previewContainer.querySelectorAll(".preview").forEach(div => div.remove());
             filesToUpload = [];
           } else {
             alert("Error: " + (data.error || "Unknown error"));
