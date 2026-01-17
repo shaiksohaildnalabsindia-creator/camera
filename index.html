@@ -35,11 +35,12 @@
       background-color: #0056b3;
     }
 
-    .preview {
+    .preview-container {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
       margin-top: 10px;
+      position: relative;
     }
 
     .preview img {
@@ -49,17 +50,15 @@
       border-radius: 5px;
     }
 
-    .input-container {
-      margin-top: 20px;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .input-container button {
+    #addMoreBtn {
       width: 50px;
-      align-self: flex-start;
-      margin-top: 5px;
-      padding: 10px;
+      height: 50px;
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 10px;
+      flex-shrink: 0;
     }
 
     @media (max-width: 480px) {
@@ -73,9 +72,10 @@
         padding: 8px;
       }
 
-      .input-container button {
+      #addMoreBtn {
         width: 40px;
-        padding: 8px;
+        height: 40px;
+        font-size: 20px;
       }
     }
   </style>
@@ -88,13 +88,9 @@
     <option value="">Select Tracking Number</option>
   </select>
 
-  <div class="input-container">
-    <label for="cameraInput">Select Image(s):</label>
-    <input type="file" id="cameraInput" accept="image/*" capture="environment" multiple>
+  <div class="preview-container" id="previewContainer">
     <button type="button" id="addMoreBtn">+</button>
   </div>
-
-  <div class="preview" id="preview"></div>
 
   <button id="uploadBtn">Upload</button>
 
@@ -102,8 +98,7 @@
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxK9JgL7RtAwn_EDZ89LSxfPCJjXw6uFHbjMxU62618OkSXbrz2qzBKuEsFy7IvQZvgwg/exec";
 
     const trackingSelect = document.getElementById("trackingSelect");
-    const fileInputContainer = document.querySelector(".input-container");
-    const previewDiv = document.getElementById("preview");
+    const previewContainer = document.getElementById("previewContainer");
     const uploadBtn = document.getElementById("uploadBtn");
     const addMoreBtn = document.getElementById("addMoreBtn");
 
@@ -129,43 +124,34 @@
       })
       .catch(console.error);
 
-    // ---------- Show image previews ----------
-    fileInputContainer.addEventListener("change", (event) => {
-      const input = event.target;
-      const fileList = input.files;
+    // ---------- Function to handle image selection ----------
+    function handleFileInput(file) {
+      const img = document.createElement("img");
+      img.src = URL.createObjectURL(file);
+      previewContainer.insertBefore(img, addMoreBtn); // always insert before the + button
+      filesToUpload.push(file);
+    }
 
-      if (fileList.length > 0) {
-        for (let i = 0; i < fileList.length; i++) {
-          const file = fileList[i];
-          const img = document.createElement("img");
-          img.src = URL.createObjectURL(file);
-          previewDiv.appendChild(img);
-          filesToUpload.push(file);
-        }
-      }
-    });
-
-    // ---------- Add more images functionality ----------
+    // ---------- Add More Images ----------
     addMoreBtn.addEventListener("click", () => {
-      const newInput = document.createElement("input");
-      newInput.type = "file";
-      newInput.accept = "image/*";
-      newInput.capture = "environment";
-      fileInputContainer.appendChild(newInput);
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/*";
+      input.capture = "environment";
+      input.style.display = "none"; // hide input
 
-      // Also add change listener for new input
-      newInput.addEventListener("change", (event) => {
+      input.addEventListener("change", (event) => {
         const fileList = event.target.files;
         if (fileList.length > 0) {
           for (let i = 0; i < fileList.length; i++) {
-            const file = fileList[i];
-            const img = document.createElement("img");
-            img.src = URL.createObjectURL(file);
-            previewDiv.appendChild(img);
-            filesToUpload.push(file);
+            handleFileInput(fileList[i]);
           }
         }
       });
+
+      document.body.appendChild(input);
+      input.click(); // trigger file picker
+      document.body.removeChild(input);
     });
 
     // ---------- Resize and Compress Image to WebP format ----------
@@ -208,16 +194,13 @@
       });
     }
 
-    // ---------- Upload images ----------
+    // ---------- Upload Images ----------
     uploadBtn.addEventListener("click", () => {
       const tracking = trackingSelect.value;
       if (!tracking) return alert("Please select a tracking number");
       if (filesToUpload.length === 0) return alert("Please select at least one image");
 
-      const readers = [];
-      filesToUpload.forEach(file => {
-        readers.push(resizeImage(file, 1000000));
-      });
+      const readers = filesToUpload.map(file => resizeImage(file, 1000000));
 
       Promise.all(readers).then(results => {
         const imagesParam = results.join("|");
@@ -232,7 +215,7 @@
         .then(data => {
           if (data.success) {
             alert("Uploaded successfully!");
-            previewDiv.innerHTML = "";
+            previewContainer.querySelectorAll("img").forEach(img => img.remove());
             filesToUpload = [];
           } else {
             alert("Error: " + (data.error || "Unknown error"));
