@@ -29,9 +29,18 @@
       border: none;
       border-radius: 5px;
       cursor: pointer;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    button:hover {
+    button:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+
+    button:hover:enabled {
       background-color: #0056b3;
     }
 
@@ -62,6 +71,23 @@
       object-fit: cover;
     }
 
+    .remove-btn {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      background-color: red;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      font-size: 14px;
+      line-height: 16px;
+      text-align: center;
+      cursor: pointer;
+      z-index: 1;
+    }
+
     #addMoreBtn {
       width: 50px;
       height: 50px;
@@ -71,6 +97,22 @@
       justify-content: center;
       margin-top: 10px;
       flex-shrink: 0;
+    }
+
+    /* Spinner */
+    .spinner {
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top: 2px solid white;
+      border-radius: 50%;
+      width: 16px;
+      height: 16px;
+      margin-left: 8px;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg);}
+      100% { transform: rotate(360deg);}
     }
 
     @media (max-width: 480px) {
@@ -88,6 +130,19 @@
         width: 40px;
         height: 40px;
         font-size: 20px;
+      }
+
+      .remove-btn {
+        width: 18px;
+        height: 18px;
+        font-size: 12px;
+        line-height: 14px;
+      }
+
+      .spinner {
+        width: 14px;
+        height: 14px;
+        margin-left: 5px;
       }
     }
   </style>
@@ -136,7 +191,7 @@
       })
       .catch(console.error);
 
-    // ---------- Function to handle image selection ----------
+    // Handle image selection
     function handleFileInput(file) {
       const wrapper = document.createElement("div");
       wrapper.className = "preview";
@@ -144,18 +199,29 @@
       const img = document.createElement("img");
       img.src = URL.createObjectURL(file);
 
+      const removeBtn = document.createElement("button");
+      removeBtn.className = "remove-btn";
+      removeBtn.textContent = "×";
+
+      removeBtn.addEventListener("click", () => {
+        const index = filesToUpload.indexOf(file);
+        if (index > -1) filesToUpload.splice(index, 1);
+        wrapper.remove();
+      });
+
       wrapper.appendChild(img);
-      previewContainer.insertBefore(wrapper, addMoreBtn); // insert before + button
+      wrapper.appendChild(removeBtn);
+      previewContainer.insertBefore(wrapper, addMoreBtn);
       filesToUpload.push(file);
     }
 
-    // ---------- Add More Images ----------
+    // Add More Images
     addMoreBtn.addEventListener("click", () => {
       const input = document.createElement("input");
       input.type = "file";
       input.accept = "image/*";
       input.capture = "environment";
-      input.style.display = "none"; // hide input
+      input.style.display = "none";
 
       input.addEventListener("change", (event) => {
         const fileList = event.target.files;
@@ -167,11 +233,11 @@
       });
 
       document.body.appendChild(input);
-      input.click(); // trigger file picker
+      input.click();
       document.body.removeChild(input);
     });
 
-    // ---------- Resize and Compress Image to WebP format ----------
+    // Resize and compress image
     function resizeImage(file, maxSize = 1000000) {
       return new Promise((resolve, reject) => {
         const img = new Image();
@@ -211,11 +277,18 @@
       });
     }
 
-    // ---------- Upload Images ----------
+    // Upload Images with spinner
     uploadBtn.addEventListener("click", () => {
       const tracking = trackingSelect.value;
       if (!tracking) return alert("Please select a tracking number");
       if (filesToUpload.length === 0) return alert("Please select at least one image");
+
+      // Add spinner
+      uploadBtn.disabled = true;
+      uploadBtn.textContent = "Uploading";
+      const spinner = document.createElement("span");
+      spinner.className = "spinner";
+      uploadBtn.appendChild(spinner);
 
       const readers = filesToUpload.map(file => resizeImage(file, 1000000));
 
@@ -238,7 +311,12 @@
             alert("Error: " + (data.error || "Unknown error"));
           }
         })
-        .catch(err => alert("Error: " + err));
+        .catch(err => alert("Error: " + err))
+        .finally(() => {
+          // Restore button
+          uploadBtn.disabled = false;
+          uploadBtn.textContent = "Upload";
+        });
       });
     });
   </script>
