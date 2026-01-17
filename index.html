@@ -16,6 +16,7 @@
     }
 
     .preview-wrapper {
+      position: relative;
       width: 80px;
       height: 80px;
       border: 1px solid #ccc;
@@ -30,6 +31,23 @@
       max-width: 100%;
       max-height: 100%;
       object-fit: cover;
+    }
+
+    .remove-btn {
+      position: absolute;
+      top: 0;
+      right: 0;
+      background: rgba(255,0,0,0.8);
+      color: white;
+      font-weight: bold;
+      border: none;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+      line-height: 18px;
+      text-align: center;
+      padding: 0;
     }
 
     .input-container {
@@ -114,9 +132,18 @@
       const img = document.createElement("img");
       img.src = URL.createObjectURL(file);
 
-      wrapper.appendChild(img);
+      const removeBtn = document.createElement("button");
+      removeBtn.textContent = "×";
+      removeBtn.className = "remove-btn";
+      removeBtn.addEventListener("click", () => {
+        const index = filesToUpload.indexOf(file);
+        if (index > -1) filesToUpload.splice(index, 1);
+        wrapper.remove();
+      });
 
-      previewDiv.appendChild(wrapper); // append preview
+      wrapper.appendChild(img);
+      wrapper.appendChild(removeBtn);
+      previewDiv.appendChild(wrapper);
       filesToUpload.push(file);
     }
 
@@ -139,7 +166,6 @@
       newInput.capture = "environment";
       fileInputContainer.insertBefore(newInput, addMoreBtn);
 
-      // Listen for change on the new input
       newInput.addEventListener("change", (e) => {
         const fileList = e.target.files;
         if (fileList.length > 0) {
